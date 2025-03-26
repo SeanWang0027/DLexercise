@@ -11,7 +11,6 @@ start_token = 'G'
 end_token = 'E'
 batch_size = 64
 
-
 def process_poems1(file_name):
     """
 
@@ -37,15 +36,13 @@ def process_poems1(file_name):
             except ValueError as e:
                 print("error")
                 pass
-    # 按诗的字数排序
     poems = sorted(poems, key=lambda line: len(line))
     # print(poems)
-    # 统计每个字出现次数
     all_words = []
     for poem in poems:
         all_words += [word for word in poem]
-    counter = collections.Counter(all_words)  # 统计词和词频。
-    count_pairs = sorted(counter.items(), key=lambda x: -x[1])  # 排序
+    counter = collections.Counter(all_words)
+    count_pairs = sorted(counter.items(), key=lambda x: -x[1])
     words, _ = zip(*count_pairs)
     words = words[:len(words)] + (' ',)
     word_int_map = dict(zip(words, range(len(words))))
@@ -79,103 +76,20 @@ def process_poems2(file_name):
             except ValueError as e:
                 # print("error")
                 pass
-    # 按诗的字数排序
     poems = sorted(poems, key=lambda line: len(line))
-    # print(poems)
-    # 统计每个字出现次数
     all_words = []
     for poem in poems:
         all_words += [word for word in poem]
-    counter = collections.Counter(all_words)  # 统计词和词频。
-    count_pairs = sorted(counter.items(), key=lambda x: -x[1])  # 排序
+    counter = collections.Counter(all_words)
+    count_pairs = sorted(counter.items(), key=lambda x: -x[1])
     words, _ = zip(*count_pairs)
     words = words[:len(words)] + (' ',)
     word_int_map = dict(zip(words, range(len(words))))
     poems_vector = [list(map(word_int_map.get, poem)) for poem in poems]
     return poems_vector, word_int_map, words
 
-def generate_batch(batch_size, poems_vec, word_to_int):
-    n_chunk = len(poems_vec) // batch_size
-    x_batches = []
-    y_batches = []
-    for i in range(n_chunk):
-        start_index = i * batch_size
-        end_index = start_index + batch_size
-        x_data = poems_vec[start_index:end_index]
-        y_data = []
-        for row in x_data:
-            y  = row[1:]
-            y.append(row[-1])
-            y_data.append(y)
-        """
-        x_data             y_data
-        [6,2,4,6,9]       [2,4,6,9,9]
-        [1,4,2,8,5]       [4,2,8,5,5]
-        """
-        # print(x_data[0])
-        # print(y_data[0])
-        # exit(0)
-        x_batches.append(x_data)
-        y_batches.append(y_data)
-    return x_batches, y_batches
 
-
-def run_training():
-    # 处理数据集
-    poems_vector, word_to_int, vocabularies = process_poems2('./tangshi.txt')
-    # poems_vector, word_to_int, vocabularies = process_poems1('./poems.txt')
-    # 生成batch
-    print("finish  loadding data")
-    BATCH_SIZE = 150
-
-    torch.manual_seed(5)
-    word_embedding = rnn.word_embedding( vocab_length= len(word_to_int) + 1 , embedding_dim= 100)
-    rnn_model = rnn.RNN_model(batch_sz = BATCH_SIZE,vocab_len = len(word_to_int) + 1 ,word_embedding = word_embedding ,embedding_dim= 100, lstm_hidden_dim=128)
-
-    optimizer = optim.Adam(rnn_model.parameters(), lr= 0.001)
-    #optimizer=optim.RMSprop(rnn_model.parameters(), lr=1e-3)
-
-    loss_fun = torch.nn.NLLLoss()
-    # rnn_model.load_state_dict(torch.load('./poem_generator_rnn'))  # if you have already trained your model you can load it by this line.
-
-    for epoch in tqdm(range(200)):
-        batches_inputs, batches_outputs = generate_batch(BATCH_SIZE, poems_vector, word_to_int)
-        n_chunk = len(batches_inputs)
-
-        loss_ep = 0
-        for batch in range(n_chunk):
-            loss_ep = 0
-            batch_x = batches_inputs[batch]
-            batch_y = batches_outputs[batch] # (batch , time_step)
-
-            loss = 0
-            for index in range(BATCH_SIZE):
-                x = np.array(batch_x[index], dtype = np.int64)
-                y = np.array(batch_y[index], dtype = np.int64)
-                x = Variable(torch.from_numpy(np.expand_dims(x,axis=1)))
-                y = Variable(torch.from_numpy(y ))
-                pre = rnn_model(x)
-                loss += loss_fun(pre , y)
-                #if index == 0:
-                #    _, pre = torch.max(pre, dim=1)
-                #    print('prediction', pre.data.tolist()) # the following  three line can print the output and the prediction
-                #    print('b_y       ', y.data.tolist())   # And you need to take a screenshot and then past is to your homework paper.
-                #    print('*' * 30)
-            loss  = loss  / BATCH_SIZE
-            loss_ep += loss
-            optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm(rnn_model.parameters(), 1)
-            optimizer.step()
-
-            if batch % 20 ==0:
-                print("epoch  ",epoch,'batch number',batch,"loss is: ", loss.data.tolist())
-                torch.save(rnn_model.state_dict(), './poem_generator_rnn')
-                print("finish  save model")
-
-        # print(f"Epoch{epoch}\tLoss:{loss_ep / n_chunk:.3f}")
-
-def to_word(predict, vocabs): 
+def to_word(predict, vocabs):
     sample = np.argmax(predict)
 
     if sample >= len(vocabs):
@@ -205,7 +119,6 @@ def gen_poem(begin_word):
 
     rnn_model.load_state_dict(torch.load('./poem_generator_rnn'))
 
-
     poem = begin_word
     word = begin_word
     while word != end_token:
@@ -218,11 +131,8 @@ def gen_poem(begin_word):
         # print(poem)
         if len(poem) > 30:
             break
+    print(poem)
     return poem
-
-
-
-run_training()
 
 
 pretty_print_poem(gen_poem("日"))
@@ -233,4 +143,4 @@ pretty_print_poem(gen_poem("湖"))
 pretty_print_poem(gen_poem("海"))
 pretty_print_poem(gen_poem("月"))
 pretty_print_poem(gen_poem("君"))
-
+pretty_print_poem(gen_poem("爱"))
